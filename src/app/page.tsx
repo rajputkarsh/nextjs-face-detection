@@ -1,13 +1,9 @@
 "use client";
 import { ModeToggle } from "@/components/theme-toggle";
-import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Separator } from "@/components/ui/separator";
-import { Slider } from "@/components/ui/slider";
+import { Button } from "@/components/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/popover";
+import { Separator } from "@/components/separator";
+import { Slider } from "@/components/slider";
 import { beep } from "@/utils/audio";
 import {
   Camera,

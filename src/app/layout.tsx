@@ -2,14 +2,14 @@ import type { Metadata } from "next";
 import { Inter, Roboto_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "@/components/sonner";
 
 const inter = Inter({ subsets: ["latin"] });
 const rm = Roboto_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "WatchtowerAI",
-  description: "24x7 surveillance",
+  title: "Face Detection",
+  description: "Face detection via Tensorflow",
 };
 
 export default function RootLayout({
