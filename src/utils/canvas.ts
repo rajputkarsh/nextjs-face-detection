@@ -6,6 +6,7 @@ import {
   DRAW_TEXT_FONT,
 } from "@/constants/draw";
 import { DetectedObject } from "@tensorflow-models/coco-ssd";
+import Webcam from "react-webcam";
 
 export const drawOnCanvas = (
   mirrored: boolean,
@@ -37,4 +38,18 @@ export const drawOnCanvas = (
         : ctx.fillText(name, x + 10, y + 20);
     }
   });
+};
+
+export const resizeCanvas = (
+  canvasRef: React.RefObject<HTMLCanvasElement>,
+  webcamRef: React.RefObject<Webcam>
+): void => {
+  const canvas = canvasRef.current;
+  const video = webcamRef.current?.video;
+
+  if (canvas && video) {
+    const { videoWidth, videoHeight } = video;
+    canvas.width = videoWidth;
+    canvas.height = videoHeight;
+  }
 };

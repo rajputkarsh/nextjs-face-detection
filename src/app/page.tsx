@@ -27,48 +27,48 @@ import * as cocossd from "@tensorflow-models/coco-ssd";
 import "@tensorflow/tfjs-backend-cpu";
 import "@tensorflow/tfjs-backend-webgl";
 import { DetectedObject, ObjectDetection } from "@tensorflow-models/coco-ssd";
-import { drawOnCanvas } from "@/utils/draw";
+import { drawOnCanvas, resizeCanvas } from "@/utils/canvas";
+import { base64toBlob, formatDate } from "@/utils/common";
 
-type Props = {};
+let intervalReference: NodeJS.Timeout;
+let stopTimeout: NodeJS.Timeout;
 
-let interval: any = null;
-let stopTimeout: any = null;
-const HomePage = (props: Props) => {
+const HomePage = () => {
   const webcamRef = useRef<Webcam>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // state
   const [mirrored, setMirrored] = useState<boolean>(true);
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const [autoRecordEnabled, setAutoRecordEnabled] = useState<boolean>(false);
-  const [volume, setVolume] = useState(0.8);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [volume, setVolume] = useState<number>(0.8);
   const [model, setModel] = useState<ObjectDetection>();
-  const [loading, setLoading] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
-  // initialize the media recorder
   useEffect(() => {
-    if (webcamRef && webcamRef.current) {
-      const stream = (webcamRef.current.video as any).captureStream();
+    if (webcamRef && webcamRef.current && webcamRef.current.video) {
+      const stream = (
+        webcamRef.current.video as unknown as HTMLMediaElementWithCaptureStream
+      ).captureStream();
       if (stream) {
         mediaRecorderRef.current = new MediaRecorder(stream);
 
-        mediaRecorderRef.current.ondataavailable = (e) => {
-          if (e.data.size > 0) {
-            const recordedBlob = new Blob([e.data], { type: "video" });
+        mediaRecorderRef.current.ondataavailable = (evt: BlobEvent) => {
+          if (evt.data.size > 0) {
+            const recordedBlob = new Blob([evt.data], { type: "video" });
             const videoURL = URL.createObjectURL(recordedBlob);
 
-            const a = document.createElement("a");
-            a.href = videoURL;
-            a.download = `${formatDate(new Date())}.webm`;
-            a.click();
+            const anchorElement = document.createElement("a");
+            anchorElement.href = videoURL;
+            anchorElement.download = `${formatDate(new Date())}.webm`;
+            anchorElement.click();
           }
         };
-        mediaRecorderRef.current.onstart = (e) => {
+        mediaRecorderRef.current.onstart = () => {
           setIsRecording(true);
         };
-        mediaRecorderRef.current.onstop = (e) => {
+        mediaRecorderRef.current.onstop = () => {
           setIsRecording(false);
         };
       }
@@ -80,8 +80,6 @@ const HomePage = (props: Props) => {
     initModel();
   }, []);
 
-  // loads model
-  // set it in a state varaible
   async function initModel() {
     const loadedModel: ObjectDetection = await cocossd.load({
       base: "mobilenet_v2",
@@ -123,16 +121,15 @@ const HomePage = (props: Props) => {
   }
 
   useEffect(() => {
-    interval = setInterval(() => {
+    intervalReference = setInterval(() => {
       runPrediction();
     }, 100);
 
-    return () => clearInterval(interval);
+    return () => clearInterval(intervalReference);
   }, [webcamRef.current, model, mirrored, autoRecordEnabled, runPrediction]);
 
   return (
     <div className="flex h-screen">
-      {/* Left division - webcam and Canvas  */}
       <div className="relative">
         <div className="relative h-screen w-full">
           <Webcam
@@ -146,11 +143,8 @@ const HomePage = (props: Props) => {
           ></canvas>
         </div>
       </div>
-
-      {/* Righ division - container for buttion panel and wiki secion  */}
       <div className="flex flex-row flex-1">
         <div className="border-primary/5 border-2 max-w-xs flex flex-col gap-2 justify-between shadow-md rounded-md p-4">
-          {/* top secion  */}
           <div className="flex flex-col gap-2">
             <ModeToggle />
             <Button
@@ -162,11 +156,8 @@ const HomePage = (props: Props) => {
             >
               <FlipHorizontal />
             </Button>
-
             <Separator className="my-2" />
           </div>
-
-          {/* Middle section  */}
           <div className="flex flex-col gap-2">
             <Separator className="my-2" />
             <Button
@@ -196,7 +187,6 @@ const HomePage = (props: Props) => {
               )}
             </Button>
           </div>
-          {/* Bottom Secion  */}
           <div className="flex flex-col gap-2">
             <Separator className="my-2" />
 
@@ -212,7 +202,7 @@ const HomePage = (props: Props) => {
                   min={0}
                   step={0.2}
                   defaultValue={[volume]}
-                  onValueCommit={(val) => {
+                  onValueCommit={(val: number[]) => {
                     setVolume(val[0]);
                     beep(val[0]);
                   }}
@@ -234,15 +224,11 @@ const HomePage = (props: Props) => {
     </div>
   );
 
-  // handler functions
-
   function userPromptScreenshot() {
-    // take picture
     if (!webcamRef.current) {
       toast("Camera not found. Please refresh");
     } else {
-      const imgSrc = webcamRef.current.getScreenshot();
-      console.log(imgSrc);
+      const imgSrc = webcamRef.current.getScreenshot() || "";
       const blob = base64toBlob(imgSrc);
 
       const url = URL.createObjectURL(blob);
@@ -251,7 +237,6 @@ const HomePage = (props: Props) => {
       a.download = `${formatDate(new Date())}.png`;
       a.click();
     }
-    // save it to downloads
   }
 
   function userPromptRecord() {
@@ -260,16 +245,11 @@ const HomePage = (props: Props) => {
     }
 
     if (mediaRecorderRef.current?.state == "recording") {
-      // check if recording
-      // then stop recording
-      // and save to downloads
       mediaRecorderRef.current.requestData();
       clearTimeout(stopTimeout);
       mediaRecorderRef.current.stop();
       toast("Recording saved to downloads");
     } else {
-      // if not recording
-      // start recording
       startRecording(false);
     }
   }
@@ -292,15 +272,12 @@ const HomePage = (props: Props) => {
     if (autoRecordEnabled) {
       setAutoRecordEnabled(false);
       toast("Autorecord disabled");
-      // show toast to user to notify the change
     } else {
       setAutoRecordEnabled(true);
       toast("Autorecord enabled");
-      // show toast
     }
   }
 
-  // inner components
   function RenderFeatureHighlightsSection() {
     return (
       <div className="text-xs text-muted-foreground">
@@ -395,45 +372,3 @@ const HomePage = (props: Props) => {
 };
 
 export default HomePage;
-
-function resizeCanvas(
-  canvasRef: React.RefObject<HTMLCanvasElement>,
-  webcamRef: React.RefObject<Webcam>
-) {
-  const canvas = canvasRef.current;
-  const video = webcamRef.current?.video;
-
-  if (canvas && video) {
-    const { videoWidth, videoHeight } = video;
-    canvas.width = videoWidth;
-    canvas.height = videoHeight;
-  }
-}
-
-function formatDate(d: Date) {
-  const formattedDate =
-    [
-      (d.getMonth() + 1).toString().padStart(2, "0"),
-      d.getDate().toString().padStart(2, "0"),
-      d.getFullYear(),
-    ].join("-") +
-    " " +
-    [
-      d.getHours().toString().padStart(2, "0"),
-      d.getMinutes().toString().padStart(2, "0"),
-      d.getSeconds().toString().padStart(2, "0"),
-    ].join("-");
-  return formattedDate;
-}
-
-function base64toBlob(base64Data: any) {
-  const byteCharacters = atob(base64Data.split(",")[1]);
-  const arrayBuffer = new ArrayBuffer(byteCharacters.length);
-  const byteArray = new Uint8Array(arrayBuffer);
-
-  for (let i = 0; i < byteCharacters.length; i++) {
-    byteArray[i] = byteCharacters.charCodeAt(i);
-  }
-
-  return new Blob([arrayBuffer], { type: "image/png" });
-}
